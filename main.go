@@ -15,15 +15,15 @@ import (
 )
 
 var (
-	lineCount  int = 0 //Increment for each line
-	successful int = 0 //Sucessfully copied files
-	failed     int = 0 //Failed to copy count.
-	duplicates int = 0 //duplicates found in the sort file
-	skipped    int = 0 //offset rows (future other skips)
-	logFile    *os.File
-	flatOut    *os.File //"index" file out.  Append existing rows plus new file path.
-	errorOut   *os.File //Error lines
-	configFile          = "config.json"
+	lineCount  int      = 0             //Increment for each line
+	successful int      = 0             //Sucessfully copied files
+	failed     int      = 0             //Failed to copy count.
+	duplicates int      = 0             //duplicates found in the sort file
+	skipped    int      = 0             //offset rows (future other skips)
+	logFile    *os.File                 //Log file
+	flatOut    *os.File                 //"index" file out.  Append existing rows plus new file path.
+	errorOut   *os.File                 //Error lines
+	configFile          = "config.json" //Configuration file.
 
 	last     string = "" //Remeber last object ID processed.  Prevents duplicates.
 	lastPath        = "" //Path of the last object.
@@ -42,26 +42,38 @@ type Configuration struct {
 	DirDepth           int
 	FolderSize         int
 	Delimiter          string
-	RowOffset          int
+	RowOffset          int //Rows that should be ignored before processing index rows.  Usefull for headers
 	ColObjectID        int
 	ColFileName        int
 	ColFileExt         int
 	ColPath            int
 }
 
+//main opens and parses the config, Starts logging, and then call setup
 func main() {
 	//Open config
 	file, _ := os.Open(configFile)
+	defer file.Close()
+	//Config is json.
 	decoder := json.NewDecoder(file)
-	c := Configuration{}
-	err := decoder.Decode(&c)
+	c := new(Configuration)
+	err := decoder.Decode(c)
 	if err != nil {
-		panic("Unable to process config file. " + configFile + ". This probably means that the file isn't valid json.")
+		panic("Unable to process config file. " + configFile +
+			". This probably means that the file isn't valid json." + err.Error())
 	}
+
 	//logging
-	initLog(&c)
+	initLog(c)
 	defer stopLog()
 
+	setup(c)
+
+}
+
+//Setup
+//Creates output files and directories and calls processIndex
+func setup(c *Configuration) {
 	//Create out dir if not exist, only one deep
 	_, e := os.Stat(c.OutDir)
 	if os.IsNotExist(e) {
@@ -76,7 +88,7 @@ func main() {
 		fmt.Println("Out directory exists.", c.OutDir)
 	}
 
-	flatOut, err = os.Create(c.FlatFileOut)
+	flatOut, err := os.Create(c.FlatFileOut)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,10 +100,11 @@ func main() {
 	defer flatOut.Close()
 
 	//Process file
-	readFile(c.FlatFileIn, &c)
+	processIndex(c.FlatFileIn, c)
 }
 
-func readFile(flat string, c *Configuration) {
+//processIndex processes flat file dump file line by line.
+func processIndex(flat string, c *Configuration) {
 	file, err := os.Open(flat)
 	if err != nil {
 		log.Fatal(err)
@@ -118,6 +131,7 @@ func readFile(flat string, c *Configuration) {
 	}
 }
 
+//processLine copies file to output.
 func processLine(line *string, c *Configuration) {
 
 	columns := strings.Split(*line, c.Delimiter)
@@ -181,10 +195,12 @@ func processLine(line *string, c *Configuration) {
 	}
 }
 
+//writeLine writes given string to given file with a newline appended at the end.
 func writeLine(s string, f *os.File) {
 	f.WriteString(s + "\n")
 }
 
+//copy copies file from in to out.
 func copy(in, out string) (e error) {
 	i, err := os.Open(in)
 	if err != nil {
@@ -197,7 +213,7 @@ func copy(in, out string) (e error) {
 
 	o, err := os.Create(out)
 	if err != nil {
-		log.Println("Cannot create file out.  Stopping program", out)
+		log.Println("Cannot create file out.  Stopping execution", out)
 		panic(err)
 	}
 	defer i.Close()
@@ -205,7 +221,7 @@ func copy(in, out string) (e error) {
 
 	w, err := io.Copy(o, i)
 	if err != nil {
-		log.Println("Copying failed.  Stopping program", out)
+		log.Println("Copying failed.  Stopping execution", out)
 		panic(err)
 	} else {
 		successful++
@@ -215,19 +231,25 @@ func copy(in, out string) (e error) {
 	return nil
 }
 
+//Calculate the ApplicationXtender from a given object id, s string
+//
 func getPathFromId(s string, c *Configuration) (p string, e error) {
 	id, e := strconv.Atoi(s)
 
+	//For each step of the path, we will calculate that portion of the path
 	for i := c.DirDepth; i > 0; i-- {
+		//Get maximum of how many objects there could be at this level.
 		powered := math.Pow(float64(c.FolderSize), float64(i))
+		//divide ID by max objects, and then Mod the id by how many objects per folder.
 		subpath := int(math.Mod((float64(id) / powered), float64(c.FolderSize)))
+		//Add this portion of the path to the directory string.  Iterate next level until done.
 		p = filepath.Join(p, strconv.Itoa(subpath))
 		//fmt.Println("Path:", p, "Id value:", id, "Subpath:", subpath, "I:", i, "Powered: ", powered)
 	}
 	return p, e
 }
 
-//Init log
+//initLog Opens or creates log file, set log output.
 func initLog(c *Configuration) {
 	f, err := os.OpenFile(c.Log, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
@@ -242,9 +264,9 @@ func initLog(c *Configuration) {
 	m := fmt.Sprintf("Configuration: %+v\n", *c)
 	fmt.Println(m)
 	log.Println(m)
-
 }
 
+//stopLog closses the log file and prints the final exit message.
 func stopLog() {
 	exitMessage := fmt.Sprint("Process stopped. \nLines processed: ", lineCount,
 		"\nSkipped rows:", skipped,
