@@ -279,6 +279,5 @@ func stopLog() {
 
 //writeLine writes given string to given file with a newline appended at the end.
 func writeLine(s string, f *os.File) {
-	fmt.Println("Called write out", s, f)
 	f.WriteString(s + "\n")
 }
