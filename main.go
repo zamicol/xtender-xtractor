@@ -42,7 +42,7 @@ type Configuration struct {
 	DirDepth           int
 	FolderSize         int
 	Delimiter          string
-	RowOffset          int //Rows that should be ignored before processing index rows.  Usefull for headers
+	RowOffset          int //Rows that should be ignored before processing index rows.  Usefull for headers.  Will be copied to output.
 	ColObjectID        int
 	ColFileName        int
 	ColFileExt         int
@@ -88,7 +88,9 @@ func setup(c *Configuration) {
 		fmt.Println("Out directory exists.", c.OutDir)
 	}
 
-	flatOut, err := os.Create(c.FlatFileOut)
+	var err error
+
+	flatOut, err = os.OpenFile(c.FlatFileOut, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,6 +117,8 @@ func processIndex(flat string, c *Configuration) {
 
 	for i := c.RowOffset; i > 0; i-- {
 		scanner.Scan()
+		//We will copy the offset to the out file.
+
 		writeLine(scanner.Text(), flatOut)
 		lineCount++
 		skipped++
@@ -195,11 +199,6 @@ func processLine(line *string, c *Configuration) {
 	}
 }
 
-//writeLine writes given string to given file with a newline appended at the end.
-func writeLine(s string, f *os.File) {
-	f.WriteString(s + "\n")
-}
-
 //copy copies file from in to out.
 func copy(in, out string) (e error) {
 	i, err := os.Open(in)
@@ -276,4 +275,10 @@ func stopLog() {
 	log.Println(exitMessage)
 	fmt.Println(exitMessage)
 	defer logFile.Close()
+}
+
+//writeLine writes given string to given file with a newline appended at the end.
+func writeLine(s string, f *os.File) {
+	fmt.Println("Called write out", s, f)
+	f.WriteString(s + "\n")
 }
