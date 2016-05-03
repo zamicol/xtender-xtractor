@@ -1,15 +1,40 @@
-ApplicationXtender File Extraction Tool
+xtender-xtractor - ApplicationXtender File Extraction Tool
 =================
-xtender-xtractor is used to copy files out manually from ApplicationXtender.  
+# Introduction #
+xtender-xtractor is used to copy files out manually from an ApplicationXtender environment.  
+Depending on setup, Object ID's and their "docid"'s can be pulled from the 
+dt and dl tables in ApplicationXtender.  This application is designed to be used in conjunction 
+with a sql dump from ApplicationXtender tables.
 
-Depending on setup, indexes/Object ID's and thier "docid"'s can be pulled from the 
-dt and dl tables in ApplicationXtender
+
+# Config #
+Config is stored in config.json.  Must be valid json.
+
+## Config Values ##
+* `FlatFileIn` - *string* - In flat file to be processed.  Should be a delimited file.  Header rows can be offset with RowOffset.
+* `FlatFileOut` - *string* - Output of running the process.  Basically appends copied file information to the end of each row processed from FlatFileIn.
+* `FlatFileErrorLines` - *string* - Lines that errored out will be placed here.  
+* `Log` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
+* `Delimiter` - *string* - delimiter for input and output flat file.  
+* `RowOffset` - *int* - Used to skip header rows.  RowOffset rows will be output to FlatFileOut
+* `OutDir` - *string* -  Path for output files.
+* `InDir` - *string* - Starting path for input files.
+* `InFileExt` - *string* - File extension for input files.  If empty string, ColFileExt will be used instead.  
+* `OutFileExt` - *string* - Extension for output files.  If blank, ColFileExtOut will be used.
+* `OutFileNameInt` - *boolean* - File will be named an incrementing integer.  If set to false, files will be named to ColFileName's value
+* `CountOffset` - *int* - If file naming sequentially using OutFileNameInt, this is the offset
+* `DirDepth` - *int* - How many directories deep?  (Usually 2 or 3)
+* `FolderSize` - *int* - how many files per folder and folder per folder?  Typically, this value should be 1024
+* `ColObjectID` - *int* - **Important**.  Object ID column number.  Used to calculate path.  
+* `ColFileName` - *int* - Column name for file name.  Only used if OutFileNameInt is set to "false"
+* `ColFileExt` - *int* - Specify in file extension column.  Only used if InFileExt is set empty ("").
+* `ColFileExtOut` - *int* - Column name for file extension out.  Only used if OutFileExt is empty ("")
 
 
 # Dump File #
-Flat File should be ordered by object ID *in ascending order*.  If list is not sorted 
-and not in ascending order, you will get duplicates if duplicates exit.  If there are 
-duplicate object ID's in the sorted list, those duplicates will be skipped.  
+Flat File should be ordered by object ID **in ascending order**.  If list is not sorted 
+and not in ascending order, you will get duplicates if duplicates exist.  When sorted,  
+duplicate object ID's are skipped.
 
 
 # File Path Calculation #
@@ -17,10 +42,11 @@ Path Calculation Equation: (int)(ObjectId / FolderSize^(DirDepth)) % FolderSize)
 
 See getPathFromId() for the exact logic.  
 
-## Flat file ##
-Flat file MUST HAVE object ID colum.  This column is used to determine file path.  
 
-The Object ID column MUST BE sorted in asscending order.  
+## Flat file ##
+Flat file **must have** object ID colum (ColObjectID).  This column is used to determine file path.  
+
+To avoid duplicates, the ColObjectID column MUST BE sorted in ascending order.  
 
 
 # Examples #
@@ -53,7 +79,6 @@ ObjectId = 7957574
 
 Add it all together:
 Path = \7\603\7957574.bin
-
 
 
 

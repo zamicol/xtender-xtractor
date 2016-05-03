@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	lineCount  int      = 0             //Increment for each line
-	successful int      = 0             //Sucessfully copied files
-	failed     int      = 0             //Failed to copy count.
-	duplicates int      = 0             //duplicates found in the sort file
+	lineCount  int = 0 //Increment for each line
+	successful int = 0 //Sucessfully copied files
+	failed     int = 0 //Failed to copy count.
+	duplicates int = 0 //duplicates found in the sort file
+
 	skipped    int      = 0             //offset rows (future other skips)
 	logFile    *os.File                 //Log file
 	flatOut    *os.File                 //"index" file out.  Append existing rows plus new file path.
@@ -42,11 +43,12 @@ type Configuration struct {
 	DirDepth           int
 	FolderSize         int
 	Delimiter          string
+	CountOffset        int //Offset used to start incrementing at another number
 	RowOffset          int //Rows that should be ignored before processing index rows.  Usefull for headers.  Will be copied to output.
 	ColObjectID        int
 	ColFileName        int
 	ColFileExt         int
-	ColPath            int
+	ColFileExtOut      int
 }
 
 //main opens and parses the config, Starts logging, and then call setup
@@ -115,17 +117,22 @@ func processIndex(flat string, c *Configuration) {
 
 	scanner := bufio.NewScanner(file)
 
+	//Special case for RowOffset rows.
 	for i := c.RowOffset; i > 0; i-- {
+		//Get the nex line using the Scan() method
 		scanner.Scan()
-		//We will copy the offset to the out file.
 
+		//We will copy the RowOffset lines to the out file.
 		writeLine(scanner.Text(), flatOut)
 		lineCount++
 		skipped++
 	}
 
+	//For all rows we want to process
 	for scanner.Scan() {
+		//Get the line to be processed.
 		var l = scanner.Text()
+		//Increment the counter and process the line
 		lineCount++
 		processLine(&l, c)
 	}
@@ -140,12 +147,10 @@ func processLine(line *string, c *Configuration) {
 
 	columns := strings.Split(*line, c.Delimiter)
 
-	d := "|"
-
 	//Check to see if object was already processed.
 	if last == columns[c.ColObjectID] {
 		log.Println("Skipping duplicate.", columns[c.ColObjectID])
-		writeLine(*line+d+lastPath, flatOut)
+		writeLine(*line+c.Delimiter+lastPath, flatOut)
 		duplicates++
 		return
 	} else {
@@ -153,11 +158,11 @@ func processLine(line *string, c *Configuration) {
 	}
 
 	//Get parent path for in file.
-	var extension string
+	var inExtension string
 	if c.InFileExt == "" {
-		extension = columns[c.ColFileExt]
+		inExtension = columns[c.ColFileExt]
 	} else {
-		extension = c.InFileExt
+		inExtension = c.InFileExt
 	}
 
 	//Full file path in
@@ -172,7 +177,7 @@ func processLine(line *string, c *Configuration) {
 		inPath = columns[c.ColFileName]
 	}
 
-	fullpath := filepath.Join(inPath, subpath, columns[c.ColObjectID]) + extension
+	fullpath := filepath.Join(inPath, subpath, columns[c.ColObjectID]) + inExtension
 	if err != nil {
 		log.Println("Unable to process line: ", lineCount, err.Error())
 	}
@@ -180,12 +185,24 @@ func processLine(line *string, c *Configuration) {
 	//full file path out.
 	var filename string
 	if c.OutFileNameInt == true {
-		filename = strconv.Itoa(successful)
+		//Add the offset to the number of successful.
+		fileIntName := c.CountOffset + successful
+		filename = strconv.Itoa(fileIntName)
 	} else {
 		filename = columns[c.ColFileName]
 	}
 
-	out := filepath.Join(c.OutDir, filename) + c.OutFileExt
+	//Extension for out file.
+	//Use static extension.  If blank, assume this value is provided in row's column
+	var outExtension string
+	if c.OutFileExt == "" {
+		outExtension = columns[c.ColFileExtOut]
+	} else {
+		outExtension = c.OutFileExt
+	}
+
+	//Create fulle path for out file
+	out := filepath.Join(c.OutDir, filename) + outExtension
 	lastPath = out
 
 	fmt.Println(fullpath, out, subpath, columns)
@@ -193,7 +210,7 @@ func processLine(line *string, c *Configuration) {
 	//Copy file
 	err = copy(fullpath, out)
 	if err == nil {
-		writeLine(*line+d+out, flatOut)
+		writeLine(*line+c.Delimiter+out, flatOut)
 	} else {
 		writeLine(*line, errorOut)
 	}

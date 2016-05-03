@@ -5,6 +5,7 @@ test_directory/errored.txt
 test_directory/out/
 process.log
 xtender-xtractor
+bin/
 
 #Editor ignores.
 *.swp

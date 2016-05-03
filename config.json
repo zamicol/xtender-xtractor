@@ -3,6 +3,8 @@
   "FlatFileOut": "test_directory/processed.txt",
   "FlatFileErrorLines": "test_directory/errored.txt",
   "Log": "process.log",
+  "Delimiter": "|",
+  "CountOffset":100,
   "RowOffset": 2,
   "OutDir": "test_directory/out",
   "InDir": "test_directory",
@@ -11,9 +13,8 @@
   "OutFileNameInt": true,
   "DirDepth": 2,
   "FolderSize": 1024,
-  "Delimiter": "|",
   "ColObjectID": 0,
   "ColFileName": 5,
   "ColFileExt": 3,
-  "ColPath": 1
+  "ColFileExtOut":1
 }
