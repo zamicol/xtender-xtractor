@@ -53,6 +53,18 @@ type Configuration struct {
 
 //main opens and parses the config, Starts logging, and then call setup
 func main() {
+	//Load Config
+	c := Config()
+
+	//Logging
+	initLog(c)
+	defer stopLog()
+
+	//Process file
+	setup(c)
+}
+
+func Config() *Configuration {
 	//Open config
 	file, _ := os.Open(configFile)
 	defer file.Close()
@@ -64,13 +76,7 @@ func main() {
 		panic("Unable to process config file. " + configFile +
 			". This probably means that the file isn't valid json." + err.Error())
 	}
-
-	//logging
-	initLog(c)
-	defer stopLog()
-
-	setup(c)
-
+	return c
 }
 
 //Setup
