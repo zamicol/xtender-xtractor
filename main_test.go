@@ -6,6 +6,7 @@ import (
 )
 
 func TestPathCalc(t *testing.T) {
+	//Golden case
 	s := map[string]string{
 		"2/811": "2927782",
 		"7/603": "7957574",

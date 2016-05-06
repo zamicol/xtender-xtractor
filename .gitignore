@@ -3,6 +3,7 @@ sTest.txt
 test_directory/processed.txt
 test_directory/errored.txt
 test_directory/out/
+test_directory/duplicates.txt
 process.log
 xtender-xtractor
 bin/

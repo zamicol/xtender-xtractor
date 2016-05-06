@@ -22,8 +22,9 @@ var (
 
 	skipped    int      = 0             //offset rows (future other skips)
 	logFile    *os.File                 //Log file
-	flatOut    *os.File                 //"index" file out.  Append existing rows plus new file path.
-	errorOut   *os.File                 //Error lines
+	outFlat    *os.File                 //"index" file out.  Append existing rows plus new file path.
+	outDups    *os.File                 //Copy over any lines that are skipped due to being duplicated object id's
+	errorLines *os.File                 //Error lines
 	configFile          = "config.json" //Configuration file.
 
 	last     string = "" //Remeber last object ID processed.  Prevents duplicates.
@@ -31,24 +32,34 @@ var (
 )
 
 type Configuration struct {
-	OutDir             string
-	InDir              string
-	FlatFileIn         string
-	FlatFileOut        string
-	FlatFileErrorLines string
-	Log                string
-	InFileExt          string
-	OutFileExt         string
-	OutFileNameInt     bool
-	DirDepth           int
-	FolderSize         int
-	Delimiter          string
-	CountOffset        int //Offset used to start incrementing at another number
-	RowOffset          int //Rows that should be ignored before processing index rows.  Usefull for headers.  Will be copied to output.
-	ColObjectID        int
-	ColFileName        int
-	ColFileExt         int
-	ColFileExtOut      int
+	//See README for description of each variable.
+	InFlatFile string
+	InDir      string
+	InFileExt  string
+
+	OutFlatFile         string
+	OutDir              string
+	OutErrorLines       string
+	OutDuplicateLines   string
+	OutFileExt          string
+	OutFileRenameInt    bool
+	OutCountOffset      int
+	OutXtenderStructure bool
+	OutAutoBatch        bool
+	OutAutoBatchCount   int
+	OutAutoBatchName    string
+
+	Log             string
+	RowOffset       int //Process ignorded rows.  Usefull for headers.  Will be copied to output.
+	DirDepth        int
+	FolderSize      int
+	Delimiter       string //Applies to both in and out.
+	ComputeChecksum bool
+
+	ColObjectID   int
+	ColFileName   int
+	ColFileExtIn  int
+	ColFileExtOut int
 }
 
 //main opens and parses the config, Starts logging, and then call setup
@@ -82,6 +93,7 @@ func Config() *Configuration {
 //Setup
 //Creates output files and directories and calls processIndex
 func setup(c *Configuration) {
+	var err error
 	//Create out dir if not exist, only one deep
 	_, e := os.Stat(c.OutDir)
 	if os.IsNotExist(e) {
@@ -96,21 +108,26 @@ func setup(c *Configuration) {
 		fmt.Println("Out directory exists.", c.OutDir)
 	}
 
-	var err error
-
-	flatOut, err = os.OpenFile(c.FlatFileOut, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	outFlat, err = os.OpenFile(c.OutFlatFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer outFlat.Close()
 
-	errorOut, err = os.Create(c.FlatFileErrorLines)
+	outDups, err = os.OpenFile(c.OutDuplicateLines, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer flatOut.Close()
+	defer outDups.Close()
+
+	errorLines, err = os.OpenFile(c.OutErrorLines, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer errorLines.Close()
 
 	//Process file
-	processIndex(c.FlatFileIn, c)
+	processIndex(c.InFlatFile, c)
 }
 
 //processIndex processes flat file dump file line by line.
@@ -129,7 +146,7 @@ func processIndex(flat string, c *Configuration) {
 		scanner.Scan()
 
 		//We will copy the RowOffset lines to the out file.
-		writeLine(scanner.Text(), flatOut)
+		writeLine(scanner.Text(), outFlat)
 		lineCount++
 		skipped++
 	}
@@ -149,31 +166,37 @@ func processIndex(flat string, c *Configuration) {
 }
 
 //processLine copies file to output.
-func processLine(line *string, c *Configuration) {
+//Returns false in the event of error
+func processLine(line *string, c *Configuration) (b bool) {
+	var err error
 
 	columns := strings.Split(*line, c.Delimiter)
 
 	//Check to see if object was already processed.
 	if last == columns[c.ColObjectID] {
 		log.Println("Skipping duplicate.", columns[c.ColObjectID])
-		writeLine(*line+c.Delimiter+lastPath, flatOut)
+		writeLine(*line, outDups)
 		duplicates++
 		return
 	} else {
+		//Remember this line to compare with the next line to check for duplicates
 		last = columns[c.ColObjectID]
 	}
 
-	//Get parent path for in file.
+	//Get extension for in file.
 	var inExtension string
 	if c.InFileExt == "" {
-		inExtension = columns[c.ColFileExt]
+		inExtension = columns[c.ColFileExtIn]
 	} else {
 		inExtension = c.InFileExt
 	}
 
-	//Full file path in
+	//Full file path for in file
 	var subpath string
-	subpath, err := getPathFromId(columns[c.ColObjectID], c)
+	subpath, err = getPathFromId(columns[c.ColObjectID], c)
+	if err != nil {
+		return errorLine(line, err)
+	}
 
 	//Use a static path OR path from flat file dump row
 	var inPath string
@@ -184,15 +207,12 @@ func processLine(line *string, c *Configuration) {
 	}
 
 	fullpath := filepath.Join(inPath, subpath, columns[c.ColObjectID]) + inExtension
-	if err != nil {
-		log.Println("Unable to process line: ", lineCount, err.Error())
-	}
 
 	//full file path out.
 	var filename string
-	if c.OutFileNameInt == true {
+	if c.OutFileRenameInt == true {
 		//Add the offset to the number of successful.
-		fileIntName := c.CountOffset + successful
+		fileIntName := c.OutCountOffset + successful
 		filename = strconv.Itoa(fileIntName)
 	} else {
 		filename = columns[c.ColFileName]
@@ -215,22 +235,24 @@ func processLine(line *string, c *Configuration) {
 
 	//Copy file
 	err = copy(fullpath, out)
+	//Write line to out file if successful
 	if err == nil {
-		writeLine(*line+c.Delimiter+out, flatOut)
+		writeLine(*line+c.Delimiter+out, outFlat)
 	} else {
-		writeLine(*line, errorOut)
+		return errorLine(line, err)
 	}
+
+	return true
 }
 
 //copy copies file from in to out.
 func copy(in, out string) (e error) {
 	i, err := os.Open(in)
 	if err != nil {
-		message := fmt.Sprint("File does not exist.", in)
-		log.Println(message)
+		message := fmt.Sprint("File does not exist. ", in)
 		fmt.Println(message)
 		failed++
-		return errors.New("File not found")
+		return errors.New(message)
 	}
 
 	o, err := os.Create(out)
@@ -290,7 +312,8 @@ func initLog(c *Configuration) {
 
 //stopLog closses the log file and prints the final exit message.
 func stopLog() {
-	exitMessage := fmt.Sprint("Process stopped. \nLines processed: ", lineCount,
+	exitMessage := fmt.Sprint(
+		"Process stopped. \nLines processed: ", lineCount,
 		"\nSkipped rows:", skipped,
 		"\nSucessfully copied: ", successful,
 		"\nDuplicates skipped: ", duplicates,
@@ -303,4 +326,12 @@ func stopLog() {
 //writeLine writes given string to given file with a newline appended at the end.
 func writeLine(s string, f *os.File) {
 	f.WriteString(s + "\n")
+}
+
+//errorLine
+//helper function for when encountering error lines.  Logs the line number with error and and writes the line to the error line file.
+func errorLine(line *string, err error) (b bool) {
+	writeLine(*line, errorLines)
+	log.Println("Line:", lineCount, err)
+	return false
 }
