@@ -9,7 +9,7 @@
   "OutDuplicateLines":"test_directory/duplicates.txt",
   "OutFileExt": ".tif",
   "OutFileRenameInt": true,
-  "OutColomns":"TODO",
+  "OutColomns":[0,1,2],
   "OutCountOffset": 0,
   "OutXtenderStructure": true,
   "OutAutoBatch": true,

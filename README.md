@@ -6,31 +6,38 @@ Depending on setup, Object ID's and their "docid"'s can be pulled from the
 dt and dl tables in ApplicationXtender.  This application is designed to be used in conjunction 
 with a sql dump from ApplicationXtender tables.
 
-
 # Config #
 Config is stored in config.json.  Must be valid json.
 
 ## Config Values ##
+#### In ####
 * `InFlatFile` - *string* - In flat file to be processed.  Should be a delimited file.  Header rows can be offset with RowOffset.
-* `OutFlatFile` - *string* - Output of running the process.  Basically appends copied file information to the end of each row processed from FlatFileIn.
-* `OutErrorLines` - *string* - Lines that errored out will be placed here.  These lines are not processed.
-* `OutDuplicateLines` - *string* - Lines that are duplicates are placed here.  These lines are not processed.
-* `Log` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
-* `ComputeChecksum` - *boolean* - Compute checksums of input/output files.  Insures that modification hasn't happened and someone is trying to do something naughty.  
-* `Delimiter` - *string* - delimiter for input and output flat file.  
-* `RowOffset` - *int* - Used to skip header rows.  RowOffset rows will be output to FlatFileOut
-* `OutDir` - *string* -  Path for output files.
-* `OutDirXtenderStructure` - *boolean* - Put output files in a directory structure that mimics ApplicationXtender
-* `AutoBatch` - *boolean* - Autobatch?  Will output files into batch folders first.  Might make migration more manageable.  The program will also look to see if the out directory already contains batches.  If it does, it will pick put where it left off.
-* `AutoBatchCount` - *int* - How many files per batch?
-* `AutoBatchName` - *string* -  Name of the batch directory.  Incrementer will be appended.  
 * `InDir` - *string* - Starting path for input files.
 * `InFileExt` - *string* - File extension for input files.  If empty string, ColFileExt will be used instead.  
+
+#### Out ####
+* `OutFlatFile` - *string* - Output of running the process.  Basically appends copied file information to the end of each row processed from FlatFileIn.
+* `OutDir` - *string* -  Path for output files.
+* `OutErrorLines` - *string* - Lines that errored out will be placed here.  These lines are not processed.
+* `OutDuplicateLines` - *string* - Lines that are duplicates are placed here.  These lines are not processed.
 * `OutFileExt` - *string* - Extension for output files.  If blank, ColFileExtOut will be used.
-* `OutFileNameInt` - *boolean* - File will be named an incrementing integer.  If set to false, files will be named to ColFileName's value
+* `OutFileRenameInt` - *boolean* - File will be named an incrementing integer.  If set to false, files will be named to ColFileName's value
+* `OutColomns` - *array* - Columns to be copied to OutFlatFile.  If blank, everything is copied. 
 * `CountOffset` - *int* - If file naming sequentially using OutFileNameInt, this is the offset
+* `OutDirXtenderStructure` - *boolean* - Put output files in a directory structure that mimics ApplicationXtender
+* `OutAutoBatch` - *boolean* - Autobatch?  Will output files into batch folders first.  Might make migration more manageable.  The program will also look to see if the out directory already contains batches.  If it does, it will pick put where it left off.
+* `OutAutoBatchCount` - *int* - How many files per batch?
+* `OutAutoBatchName` - *string* -  Name of the batch directory.  Incrementer will be appended.  
+
+#### Global ####
+* `Log` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
+* `RowOffset` - *int* - Used to skip header rows.  RowOffset rows will be output to FlatFileOut
 * `DirDepth` - *int* - How many directories deep?  (Usually 2 or 3)
 * `FolderSize` - *int* - how many files per folder and folder per folder?  Typically, this value should be 1024
+* `Delimiter` - *string* - delimiter for input and output flat file.  
+* `ComputeChecksum` - *boolean* - Compute checksums of input/output files.  Insures that modification hasn't happened and someone is trying to do something naughty.  
+
+#### Columns ####
 * `ColObjectID` - *int* - **Important**.  Object ID column number.  Used to calculate path.  
 * `ColFileName` - *int* - Column name for file name.  Only used if OutFileNameInt is set to "false"
 * `ColFileExtIn` - *int* - Specify in file extension column.  Only used if InFileExt is set empty ("").
