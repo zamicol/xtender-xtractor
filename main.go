@@ -43,6 +43,7 @@ type Configuration struct {
 	OutDuplicateLines   string
 	OutFileExt          string
 	OutFileRenameInt    bool
+	OutColomns          []interface{}
 	OutCountOffset      int
 	OutXtenderStructure bool
 	OutAutoBatch        bool
@@ -60,6 +61,12 @@ type Configuration struct {
 	ColFileName   int
 	ColFileExtIn  int
 	ColFileExtOut int
+}
+
+type Line struct {
+	*Configuration
+	Line    string
+	Columns []string
 }
 
 //main opens and parses the config, Starts logging, and then call setup
@@ -94,6 +101,7 @@ func Config() *Configuration {
 //Creates output files and directories and calls processIndex
 func setup(c *Configuration) {
 	var err error
+
 	//Create out dir if not exist, only one deep
 	_, e := os.Stat(c.OutDir)
 	if os.IsNotExist(e) {
@@ -102,7 +110,8 @@ func setup(c *Configuration) {
 		if e == nil {
 			fmt.Println("Created output directory: ", c.OutDir)
 		} else {
-			fmt.Println("Unable to create output directory: ", c.OutDir)
+			fmt.Println("Unable to create output directory: ", c.OutDir, err)
+			panic(err)
 		}
 	} else {
 		fmt.Println("Out directory exists.", c.OutDir)
@@ -127,11 +136,11 @@ func setup(c *Configuration) {
 	defer errorLines.Close()
 
 	//Process file
-	processIndex(c.InFlatFile, c)
+	processIn(c.InFlatFile, c)
 }
 
 //processIndex processes flat file dump file line by line.
-func processIndex(flat string, c *Configuration) {
+func processIn(flat string, c *Configuration) {
 	file, err := os.Open(flat)
 	if err != nil {
 		log.Fatal(err)
@@ -157,7 +166,19 @@ func processIndex(flat string, c *Configuration) {
 		var l = scanner.Text()
 		//Increment the counter and process the line
 		lineCount++
-		processLine(&l, c)
+
+		//Get the columns in the line
+		col := strings.Split(l, c.Delimiter)
+
+		//New line object.
+		line := &Line{
+			Configuration: c,
+			Line:          l,
+			Columns:       col,
+		}
+
+		line.ProcessLine()
+
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -167,82 +188,91 @@ func processIndex(flat string, c *Configuration) {
 
 //processLine copies file to output.
 //Returns false in the event of error
-func processLine(line *string, c *Configuration) (b bool) {
+func (l *Line) ProcessLine() (b bool) {
 	var err error
 
-	columns := strings.Split(*line, c.Delimiter)
-
 	//Check to see if object was already processed.
-	if last == columns[c.ColObjectID] {
-		log.Println("Skipping duplicate.", columns[c.ColObjectID])
-		writeLine(*line, outDups)
+	if last == l.Columns[l.ColObjectID] {
+		log.Println("Skipping duplicate.", l.Columns[l.ColObjectID])
+		//Write this line to duplicates
+		writeLine(l.Line, outDups)
 		duplicates++
-		return
+		return false
 	} else {
 		//Remember this line to compare with the next line to check for duplicates
-		last = columns[c.ColObjectID]
+		last = l.Columns[l.ColObjectID]
 	}
 
 	//Get extension for in file.
 	var inExtension string
-	if c.InFileExt == "" {
-		inExtension = columns[c.ColFileExtIn]
+	if l.InFileExt == "" {
+		inExtension = l.Columns[l.ColFileExtIn]
 	} else {
-		inExtension = c.InFileExt
+		inExtension = l.InFileExt
 	}
 
 	//Full file path for in file
 	var subpath string
-	subpath, err = getPathFromId(columns[c.ColObjectID], c)
-	if err != nil {
-		return errorLine(line, err)
-	}
+	subpath = l.GetOutPath()
+	//	if err != nil {
+	//		return errorLine(line, err)
+	//	}
 
 	//Use a static path OR path from flat file dump row
 	var inPath string
-	if c.InDir != "" {
-		inPath = c.InDir
+	if l.InDir != "" {
+		inPath = l.InDir
 	} else {
-		inPath = columns[c.ColFileName]
+		inPath = l.Columns[l.ColFileName]
 	}
 
-	fullpath := filepath.Join(inPath, subpath, columns[c.ColObjectID]) + inExtension
+	//Full path for file in.
+	inFullPath := filepath.Join(inPath, subpath, l.Columns[l.ColObjectID]) + inExtension
 
+	//Get full path for file out.
+	outFullPath := l.GetOutPath()
+
+	fmt.Println(inFullPath, outFullPath, subpath, l.Columns)
+
+	//Copy file
+	err = copy(inFullPath, outFullPath)
+	//Write line to out file if successful
+	if err == nil {
+		writeLine(l.Line+l.Delimiter+outFullPath, outFlat)
+	} else {
+		return errorLine(&l.Line, err)
+	}
+
+	return true
+}
+
+func (l *Line) GetOutPath() string {
 	//full file path out.
 	var filename string
-	if c.OutFileRenameInt == true {
-		//Add the offset to the number of successful.
-		fileIntName := c.OutCountOffset + successful
-		filename = strconv.Itoa(fileIntName)
+	if l.OutFileRenameInt == true {
+		//Add the offset to the number of successful.  This gives use the current file name
+		current := l.OutCountOffset + successful
+		filename = strconv.Itoa(current)
 	} else {
-		filename = columns[c.ColFileName]
+		filename = l.Columns[l.ColFileName]
 	}
 
 	//Extension for out file.
 	//Use static extension.  If blank, assume this value is provided in row's column
 	var outExtension string
-	if c.OutFileExt == "" {
-		outExtension = columns[c.ColFileExtOut]
+	if l.OutFileExt == "" {
+		outExtension = l.Columns[l.ColFileExtOut]
 	} else {
-		outExtension = c.OutFileExt
+		outExtension = l.OutFileExt
 	}
 
 	//Create fulle path for out file
-	out := filepath.Join(c.OutDir, filename) + outExtension
+	out := filepath.Join(l.OutDir, filename) + outExtension
+
+	//TODO document me.
 	lastPath = out
 
-	fmt.Println(fullpath, out, subpath, columns)
-
-	//Copy file
-	err = copy(fullpath, out)
-	//Write line to out file if successful
-	if err == nil {
-		writeLine(*line+c.Delimiter+out, outFlat)
-	} else {
-		return errorLine(line, err)
-	}
-
-	return true
+	return out
 }
 
 //copy copies file from in to out.
