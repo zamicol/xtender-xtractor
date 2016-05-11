@@ -27,29 +27,33 @@ var (
 	errorLines *os.File                 //Error lines
 	configFile          = "config.json" //Configuration file.
 
-	last     string = "" //Remeber last object ID processed.  Prevents duplicates.
-	lastPath        = "" //Path of the last object.
+	last int = 0 //Remeber last object ID processed.  Prevents duplicates.
 )
 
+//Configuration
+//See README for description of each variable.
 type Configuration struct {
-	//See README for description of each variable.
+	//In
 	InFlatFile string
 	InDir      string
 	InFileExt  string
 
+	//Out
 	OutFlatFile         string
 	OutDir              string
 	OutErrorLines       string
 	OutDuplicateLines   string
 	OutFileExt          string
 	OutFileRenameInt    bool
-	OutColomns          []interface{}
+	OutColomns          string
 	OutCountOffset      int
 	OutXtenderStructure bool
-	OutAutoBatch        bool
-	OutAutoBatchCount   int
-	OutAutoBatchName    string
+	//AutoBatch
+	OutAutoBatch      bool
+	OutAutoBatchCount int
+	OutAutoBatchName  string
 
+	//Global
 	Log             string
 	RowOffset       int //Process ignorded rows.  Usefull for headers.  Will be copied to output.
 	DirDepth        int
@@ -57,6 +61,7 @@ type Configuration struct {
 	Delimiter       string //Applies to both in and out.
 	ComputeChecksum bool
 
+	//Columns
 	ColObjectID   int
 	ColFileName   int
 	ColFileExtIn  int
@@ -65,8 +70,11 @@ type Configuration struct {
 
 type Line struct {
 	*Configuration
-	Line    string
-	Columns []string
+	Line    string   //String of the line
+	Columns []string //Parsed columns
+	ID      int      //uniqueobject ID.  Used for path calculation.
+	Dir     string   //Directory of file
+	Path    string   //Full path including file
 }
 
 //main opens and parses the config, Starts logging, and then call setup
@@ -103,19 +111,7 @@ func setup(c *Configuration) {
 	var err error
 
 	//Create out dir if not exist, only one deep
-	_, e := os.Stat(c.OutDir)
-	if os.IsNotExist(e) {
-		fmt.Println("Out directory does not exist.", c.OutDir)
-		e := os.Mkdir(c.OutDir, 0777)
-		if e == nil {
-			fmt.Println("Created output directory: ", c.OutDir)
-		} else {
-			fmt.Println("Unable to create output directory: ", c.OutDir, err)
-			panic(err)
-		}
-	} else {
-		fmt.Println("Out directory exists.", c.OutDir)
-	}
+	Mkdir(c.OutDir)
 
 	outFlat, err = os.OpenFile(c.OutFlatFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
@@ -167,9 +163,9 @@ func processIn(flat string, c *Configuration) {
 		//Increment the counter and process the line
 		lineCount++
 
+		//Construct our line type
 		//Get the columns in the line
 		col := strings.Split(l, c.Delimiter)
-
 		//New line object.
 		line := &Line{
 			Configuration: c,
@@ -178,7 +174,6 @@ func processIn(flat string, c *Configuration) {
 		}
 
 		line.ProcessLine()
-
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -191,18 +186,69 @@ func processIn(flat string, c *Configuration) {
 func (l *Line) ProcessLine() (b bool) {
 	var err error
 
-	//Check to see if object was already processed.
-	if last == l.Columns[l.ColObjectID] {
-		log.Println("Skipping duplicate.", l.Columns[l.ColObjectID])
-		//Write this line to duplicates
-		writeLine(l.Line, outDups)
-		duplicates++
-		return false
-	} else {
-		//Remember this line to compare with the next line to check for duplicates
-		last = l.Columns[l.ColObjectID]
+	//Get object ID from column
+	l.ID, err = strconv.Atoi(l.Columns[l.ColObjectID])
+	if err != nil {
+		return errorLine(&l.Line, err)
 	}
 
+	//Check to see if object was already processed.
+	//We do this by comparing objectID, which represents a unique object
+	if last == l.ID {
+		duplicates++
+		log.Println("Skipping duplicate.", l.ID)
+		writeLine(l.Line, outDups)
+		return false
+	}
+
+	//Remember this line to compare with the next line to check for duplicates
+	last = l.ID
+
+	//Get full path for file in
+	l.Path, err = l.GetInPath()
+	if err != nil {
+		return errorLine(&l.Line, err)
+	}
+
+	//Create new Line for line out.  Copy values from line in.
+	lo := *l
+	//What object out are we on?  Should be successful plus offset
+	current := successful + l.OutCountOffset
+	lo.ID = current
+
+	//Get full path for file out.
+	lo.Path, err = lo.GetOutPath()
+	if err != nil {
+		//Write line in to error line.
+		return errorLine(&l.Line, err)
+	}
+
+	//fmt.Println("inFullPath:", l.Path, "outFullPath:", lo.Path)
+	//Create path for out.
+	MkdirAll(lo.Dir)
+
+	//Copy file
+	err = copy(l.Path, lo.Path)
+	//Write line to out file if successful
+	if err != nil {
+		return errorLine(&l.Line, err)
+	}
+
+	//TODO
+	//Columns
+	err = lo.GenLineFromColumns()
+	fmt.Println("CurrentLine:", lo.Line)
+	if err != nil {
+		fmt.Println("There shouldn't be an error here.", err)
+		return errorLine(&l.Line, err)
+	}
+
+	writeLine(lo.Line+lo.Delimiter+lo.Path, outFlat)
+
+	return true
+}
+
+func (l *Line) GetInPath() (fullPath string, err error) {
 	//Get extension for in file.
 	var inExtension string
 	if l.InFileExt == "" {
@@ -211,89 +257,133 @@ func (l *Line) ProcessLine() (b bool) {
 		inExtension = l.InFileExt
 	}
 
-	//Full file path for in file
-	var subpath string
-	subpath = l.GetOutPath()
-	//	if err != nil {
-	//		return errorLine(line, err)
-	//	}
-
 	//Use a static path OR path from flat file dump row
-	var inPath string
+	var parentPath string
 	if l.InDir != "" {
-		inPath = l.InDir
+		parentPath = l.InDir
 	} else {
-		inPath = l.Columns[l.ColFileName]
+		parentPath = l.Columns[l.ColFileName]
 	}
+
+	var subpath string
+	subpath, err = l.GetPathFromId()
+	if err != nil {
+		return "", err
+	}
+
+	var fileName = strconv.Itoa(l.ID)
 
 	//Full path for file in.
-	inFullPath := filepath.Join(inPath, subpath, l.Columns[l.ColObjectID]) + inExtension
-
-	//Get full path for file out.
-	outFullPath := l.GetOutPath()
-
-	fmt.Println(inFullPath, outFullPath, subpath, l.Columns)
-
-	//Copy file
-	err = copy(inFullPath, outFullPath)
-	//Write line to out file if successful
-	if err == nil {
-		writeLine(l.Line+l.Delimiter+outFullPath, outFlat)
-	} else {
-		return errorLine(&l.Line, err)
-	}
-
-	return true
+	fullPath = filepath.Join(parentPath, subpath, fileName) + inExtension
+	return fullPath, nil
 }
 
-func (l *Line) GetOutPath() string {
+func (l *Line) GetOutPath() (out string, err error) {
 	//full file path out.
 	var filename string
+
 	if l.OutFileRenameInt == true {
-		//Add the offset to the number of successful.  This gives use the current file name
-		current := l.OutCountOffset + successful
-		filename = strconv.Itoa(current)
+		//Use ID as file name
+		filename = strconv.Itoa(l.ID)
 	} else {
+		//Get the file name from the in file
 		filename = l.Columns[l.ColFileName]
 	}
 
 	//Extension for out file.
 	//Use static extension.  If blank, assume this value is provided in row's column
-	var outExtension string
-	if l.OutFileExt == "" {
+	outExtension := l.OutFileExt
+	if outExtension == "" {
 		outExtension = l.Columns[l.ColFileExtOut]
-	} else {
-		outExtension = l.OutFileExt
 	}
 
-	//Create fulle path for out file
-	out := filepath.Join(l.OutDir, filename) + outExtension
+	//Are we batching?  If so, add batch to file name.
+	if l.OutAutoBatch == true {
 
-	//TODO document me.
-	lastPath = out
+		//Calculate which batch.
+		var batchCount int
+		batchCount = l.ID / l.OutAutoBatchCount
+		bcn := strconv.Itoa(batchCount)
+		l.Dir = l.OutAutoBatchName + bcn
+	}
 
-	return out
+	//Create full path for out file
+	//Create parent path first.
+	if l.OutXtenderStructure == true {
+		var subpath string
+		subpath, err = l.GetPathFromId()
+		if err != nil {
+			return "", err
+		}
+
+		//l.Dir can be populated with batch folder
+		l.Dir = filepath.Join(l.OutDir, l.Dir, subpath)
+	} else {
+		l.Dir = l.OutDir
+	}
+
+	//Parent path plus file
+	l.Path = filepath.Join(l.Dir, filename) + outExtension
+
+	return l.Path, nil
+}
+
+func (l *Line) GenLineFromColumns() (err error) {
+
+	var line string
+
+	cols := strings.Split(l.OutColomns, ",")
+	fmt.Println("cols:", cols)
+	for _, v := range cols {
+		i, _ := strconv.Atoi(v)
+
+		//Fencepost
+		if line == "" {
+			line += l.Columns[i]
+		} else {
+			line += l.Delimiter + l.Columns[i]
+		}
+	}
+
+	l.Line = line
+
+	return nil
+}
+
+//Calculate the ApplicationXtender from a given object id, s
+func (l *Line) GetPathFromId() (p string, e error) {
+	//For each step of the path, we will calculate that portion of the path
+	for i := l.DirDepth; i > 0; i-- {
+		//Get maximum of how many objects there could be at this level.
+		powered := math.Pow(float64(l.FolderSize), float64(i))
+		//divide ID by max objects, and then Mod the id by how many objects per folder.
+		subpath := int(math.Mod((float64(l.ID) / powered), float64(l.FolderSize)))
+		//Add this portion of the path to the directory string.  Iterate next level until done.
+		p = filepath.Join(p, strconv.Itoa(subpath))
+		//fmt.Println("Path:", p, "Id value:", id, "Subpath:", subpath, "I:", i, "Powered: ", powered)
+	}
+	return p, e
 }
 
 //copy copies file from in to out.
-func copy(in, out string) (e error) {
+func copy(in, out string) (err error) {
 	i, err := os.Open(in)
 	if err != nil {
+		failed++
 		message := fmt.Sprint("File does not exist. ", in)
 		fmt.Println(message)
-		failed++
 		return errors.New(message)
 	}
+	defer i.Close()
 
 	o, err := os.Create(out)
 	if err != nil {
 		log.Println("Cannot create file out.  Stopping execution", out)
 		panic(err)
 	}
-	defer i.Close()
 	defer o.Close()
 
-	w, err := io.Copy(o, i)
+	_, err = io.Copy(o, i)
 	if err != nil {
 		log.Println("Copying failed.  Stopping execution", out)
 		panic(err)
@@ -301,26 +391,7 @@ func copy(in, out string) (e error) {
 		successful++
 	}
 
-	fmt.Println(w)
 	return nil
-}
-
-//Calculate the ApplicationXtender from a given object id, s string
-//
-func getPathFromId(s string, c *Configuration) (p string, e error) {
-	id, e := strconv.Atoi(s)
-
-	//For each step of the path, we will calculate that portion of the path
-	for i := c.DirDepth; i > 0; i-- {
-		//Get maximum of how many objects there could be at this level.
-		powered := math.Pow(float64(c.FolderSize), float64(i))
-		//divide ID by max objects, and then Mod the id by how many objects per folder.
-		subpath := int(math.Mod((float64(id) / powered), float64(c.FolderSize)))
-		//Add this portion of the path to the directory string.  Iterate next level until done.
-		p = filepath.Join(p, strconv.Itoa(subpath))
-		//fmt.Println("Path:", p, "Id value:", id, "Subpath:", subpath, "I:", i, "Powered: ", powered)
-	}
-	return p, e
 }
 
 //initLog Opens or creates log file, set log output.
@@ -336,8 +407,38 @@ func initLog(c *Configuration) {
 	logFile = f
 	log.Println("Started process.")
 	m := fmt.Sprintf("Configuration: %+v\n", *c)
-	fmt.Println(m)
 	log.Println(m)
+}
+
+func Mkdir(dir string) {
+	//Create out dir if not exist, only one deep
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		fmt.Println("Out directory does not exist.", dir)
+		err := os.Mkdir(dir, 0777)
+		if err == nil {
+			fmt.Println("Created output directory: ", dir)
+		} else {
+			message := fmt.Sprint("Unable to create output directory.  Stopping execution ", dir, err)
+			errors.New(message)
+			panic(err)
+		}
+	} else {
+		fmt.Println("Out directory exists.", dir)
+	}
+}
+
+func MkdirAll(dir string) {
+	//Create out dir if not exist, only one deep
+	_, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		err := os.MkdirAll(dir, 0777)
+		if err != nil {
+			message := fmt.Sprint("Unable to create output directory.  Stopping execution ", dir, err)
+			errors.New(message)
+			panic(err)
+		}
+	}
 }
 
 //stopLog closses the log file and prints the final exit message.
