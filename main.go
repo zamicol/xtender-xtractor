@@ -45,11 +45,7 @@ type Configuration struct {
 	OutDuplicateLines   string
 	OutFileExt          string
 	OutFileRenameInt    bool
-<<<<<<< HEAD
 	OutColomns          string
-=======
-	OutColomns          []interface{}
->>>>>>> d86a57f2a0b02613154740cd042227fa299eb17f
 	OutCountOffset      int
 	OutXtenderStructure bool
 	//AutoBatch
