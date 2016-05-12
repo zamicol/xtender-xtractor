@@ -234,15 +234,11 @@ func (l *Line) ProcessLine() (b bool) {
 		return errorLine(&l.Line, err)
 	}
 
-	//TODO
 	//Columns
 	err = lo.GenLineFromColumns()
-	fmt.Println("CurrentLine:", lo.Line)
 	if err != nil {
-		fmt.Println("There shouldn't be an error here.", err)
 		return errorLine(&l.Line, err)
 	}
-
 	writeLine(lo.Line+lo.Delimiter+lo.Path, outFlat)
 
 	return true
