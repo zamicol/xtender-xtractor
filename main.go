@@ -174,6 +174,7 @@ func processIn(flat string, c *Configuration) {
 		var l = scanner.Text()
 		//Increment the counter and process the line
 		lineCount++
+		fmt.Println("Line: ", lineCount)
 
 		//Construct our line type
 		//Get the columns in the line
@@ -378,7 +379,6 @@ func (l *Line) GenLineFromColumns() (err error) {
 
 	var line string
 	cols := strings.Split(l.OutLinesColomns, ",")
-	fmt.Println("cols:", cols)
 	for _, v := range cols {
 		i, err := strconv.Atoi(v)
 		if err != nil {
