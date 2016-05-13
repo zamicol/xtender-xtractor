@@ -3,26 +3,29 @@
   "InDir": "test_directory",
   "InFileExt": ".bin",
 
-  "OutFlatFile": "test_directory/processed.txt",
   "OutDir": "test_directory/out",
-  "OutErrorLines": "test_directory/errored.txt",
-  "OutDuplicateLines":"test_directory/duplicates.txt",
+  "OutLinesName": "processed.txt",
+  "OutLinesErrorName": "errorLine.txt",
+  "OutLog": "process.log",
+  "OutLinesDuplicateName":"duplicates.txt",
+  "OutLinesColomns":"1,2,3",
+  "OutLinesRowOffset": 2,
+
   "OutFileExt": ".tif",
   "OutFileRenameInt": true,
-  "OutColomns":"1,2,3",
-  "OutCountOffset": 0,
+  "OutFileRenameIntOffset": 0,
   "OutXtenderStructure": true,
+  
   "OutAutoBatch": true,
   "OutAutoBatchCount": 10000,
   "OutAutoBatchName": "Batch",
+  "OutAutoBatchZeroPad": 8,
 
-  "Log": "process.log",
-  "RowOffset": 2,
+
   "DirDepth": 2,
   "FolderSize": 1024,
   "Delimiter": "|",
   "ComputeChecksum": true,
-
 
   "ColObjectID": 0,
   "ColFileName": 5,

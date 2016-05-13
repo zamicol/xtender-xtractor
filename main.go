@@ -31,6 +31,7 @@ var (
 )
 
 //Configuration
+//From config.json
 //See README for description of each variable.
 type Configuration struct {
 	//In
@@ -39,23 +40,27 @@ type Configuration struct {
 	InFileExt  string
 
 	//Out
-	OutFlatFile         string
-	OutDir              string
-	OutErrorLines       string
-	OutDuplicateLines   string
-	OutFileExt          string
-	OutFileRenameInt    bool
-	OutColomns          string
-	OutCountOffset      int
-	OutXtenderStructure bool
+	OutDir string
+	//Lines
+	OutLinesName          string
+	OutLinesErrorName     string
+	OutLog                string
+	OutLinesDuplicateName string
+	OutLinesColomns       string
+	OutLinesRowOffset     int
+	//Files
+	OutFileExt             string
+	OutFileRenameInt       bool
+	OutFileRenameIntOffset int
+	OutXtenderStructure    bool
 	//AutoBatch
-	OutAutoBatch      bool
-	OutAutoBatchCount int
-	OutAutoBatchName  string
+	OutAutoBatch        bool
+	OutAutoBatchCount   int
+	OutAutoBatchName    string
+	OutAutoBatchZeroPad int
 
 	//Global
-	Log             string
-	RowOffset       int //Process ignorded rows.  Usefull for headers.  Will be copied to output.
+
 	DirDepth        int
 	FolderSize      int
 	Delimiter       string //Applies to both in and out.
@@ -81,10 +86,6 @@ type Line struct {
 func main() {
 	//Load Config
 	c := Config()
-
-	//Logging
-	initLog(c)
-	defer stopLog()
 
 	//Process file
 	setup(c)
@@ -113,19 +114,21 @@ func setup(c *Configuration) {
 	//Create out dir if not exist, only one deep
 	Mkdir(c.OutDir)
 
-	outFlat, err = os.OpenFile(c.OutFlatFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer outFlat.Close()
+	//Logging
+	initLog(c)
+	defer stopLog()
 
-	outDups, err = os.OpenFile(c.OutDuplicateLines, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	//Duplicate lines file
+	od := filepath.Join(c.OutDir, c.OutLinesDuplicateName)
+	outDups, err = os.OpenFile(od, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer outDups.Close()
 
-	errorLines, err = os.OpenFile(c.OutErrorLines, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	//Error lines file
+	oe := filepath.Join(c.OutDir, c.OutLinesErrorName)
+	errorLines, err = os.OpenFile(oe, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,6 +140,7 @@ func setup(c *Configuration) {
 
 //processIndex processes flat file dump file line by line.
 func processIn(flat string, c *Configuration) {
+	//Open input file
 	file, err := os.Open(flat)
 	if err != nil {
 		log.Fatal(err)
@@ -146,12 +150,15 @@ func processIn(flat string, c *Configuration) {
 	scanner := bufio.NewScanner(file)
 
 	//Special case for RowOffset rows.
-	for i := c.RowOffset; i > 0; i-- {
-		//Get the nex line using the Scan() method
+	for i := c.OutLinesRowOffset; i > 0; i-- {
+		//Get the next line using the Scan() method
 		scanner.Scan()
 
 		//We will copy the RowOffset lines to the out file.
-		writeLine(scanner.Text(), outFlat)
+		//TODO remove me
+		//Maybe put lines in Log?
+		//No we wont!
+		//writeLine(scanner.Text(), outFlat)
 		lineCount++
 		skipped++
 	}
@@ -186,6 +193,9 @@ func processIn(flat string, c *Configuration) {
 func (l *Line) ProcessLine() (b bool) {
 	var err error
 
+	//TODO create out lines
+	l.OutLineFile()
+
 	//Get object ID from column
 	l.ID, err = strconv.Atoi(l.Columns[l.ColObjectID])
 	if err != nil {
@@ -213,7 +223,7 @@ func (l *Line) ProcessLine() (b bool) {
 	//Create new Line for line out.  Copy values from line in.
 	lo := *l
 	//What object out are we on?  Should be successful plus offset
-	current := successful + l.OutCountOffset
+	current := successful + l.OutFileRenameIntOffset
 	lo.ID = current
 
 	//Get full path for file out.
@@ -244,6 +254,8 @@ func (l *Line) ProcessLine() (b bool) {
 	return true
 }
 
+//GetInPath
+//Get full path for file in
 func (l *Line) GetInPath() (fullPath string, err error) {
 	//Get extension for in file.
 	var inExtension string
@@ -274,6 +286,8 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 	return fullPath, nil
 }
 
+//GetOutPath
+//Get full path for out file
 func (l *Line) GetOutPath() (out string, err error) {
 	//full file path out.
 	var filename string
@@ -293,14 +307,9 @@ func (l *Line) GetOutPath() (out string, err error) {
 		outExtension = l.Columns[l.ColFileExtOut]
 	}
 
-	//Are we batching?  If so, add batch to file name.
+	//Are we batching?  If so, add batch name to path.
 	if l.OutAutoBatch == true {
-
-		//Calculate which batch.
-		var batchCount int
-		batchCount = l.ID / l.OutAutoBatchCount
-		bcn := strconv.Itoa(batchCount)
-		l.Dir = l.OutAutoBatchName + bcn
+		l.Dir = l.GetBatch()
 	}
 
 	//Create full path for out file
@@ -312,26 +321,64 @@ func (l *Line) GetOutPath() (out string, err error) {
 			return "", err
 		}
 
-		//l.Dir can be populated with batch folder
-		l.Dir = filepath.Join(l.OutDir, l.Dir, subpath)
-	} else {
-		l.Dir = l.OutDir
+		//Add the subpath to the current dir.
+		l.Dir = filepath.Join(l.Dir, subpath)
 	}
 
-	//Parent path plus file
+	//Add the parent Out directory.  This give the final directory.
+	l.Dir = filepath.Join(l.OutDir, l.Dir)
+
+	//Full path including file name.
 	l.Path = filepath.Join(l.Dir, filename) + outExtension
 
 	return l.Path, nil
 }
 
+//OutLines
+//Create the "OutLines" files.
+//Should call defer os.Close
+func (l *Line) OutLineFile() {
+	outFile := l.GetBatch() + "_" + l.OutLinesName
+	outPath := filepath.Join(l.OutDir, outFile)
+	var err error
+	outFlat, err = os.OpenFile(outPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//return outFlat
+}
+
+//GetBatch
+//Return the batch name, including incrementer
+func (l *Line) GetBatch() string {
+	//If batch is false, there is no batch.  Return blank string
+	if l.OutAutoBatch == false {
+		return ""
+	}
+
+	var batchCount int
+	batchCount = l.ID / l.OutAutoBatchCount
+	//bcn := strconv.Itoa(batchCount)
+
+	//Zero pad our batch
+	pad := strconv.Itoa(l.OutAutoBatchZeroPad)
+	bcn := fmt.Sprintf("%0"+pad+"d", batchCount)
+
+	return l.OutAutoBatchName + bcn
+}
+
+//GenLineFromColumns
+//Instead of copying the line from flat in, grab only some columns and write those to out.
 func (l *Line) GenLineFromColumns() (err error) {
 
 	var line string
-
-	cols := strings.Split(l.OutColomns, ",")
+	cols := strings.Split(l.OutLinesColomns, ",")
 	fmt.Println("cols:", cols)
 	for _, v := range cols {
-		i, _ := strconv.Atoi(v)
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return err
+		}
 
 		//Fencepost
 		if line == "" {
@@ -390,22 +437,6 @@ func copy(in, out string) (err error) {
 	return nil
 }
 
-//initLog Opens or creates log file, set log output.
-func initLog(c *Configuration) {
-	f, err := os.OpenFile(c.Log, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
-	if err != nil {
-		panic("error opening file log file.")
-	} else {
-		fmt.Println("Created and opened log:", c.Log)
-	}
-
-	log.SetOutput(f)
-	logFile = f
-	log.Println("Started process.")
-	m := fmt.Sprintf("Configuration: %+v\n", *c)
-	log.Println(m)
-}
-
 func Mkdir(dir string) {
 	//Create out dir if not exist, only one deep
 	_, err := os.Stat(dir)
@@ -435,6 +466,24 @@ func MkdirAll(dir string) {
 			panic(err)
 		}
 	}
+}
+
+//initLog Opens or creates log file, set log output.
+func initLog(c *Configuration) {
+
+	ol := filepath.Join(c.OutDir, c.OutLog)
+	f, err := os.OpenFile(ol, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+	if err != nil {
+		panic("error opening file log file.")
+	} else {
+		fmt.Println("Created and opened log:", c.OutLog)
+	}
+
+	log.SetOutput(f)
+	logFile = f
+	log.Println("Started process.")
+	m := fmt.Sprintf("Configuration: %+v\n", *c)
+	log.Println(m)
 }
 
 //stopLog closses the log file and prints the final exit message.
