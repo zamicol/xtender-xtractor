@@ -22,6 +22,7 @@ Config is stored in config.json.  Must be valid json.
   * `OutLinesName` - *string* - Output of running the process.  Basically appends copied file information to the end of each row processed from InFlatFile.  This is the "index" file for copied files.
   * `OutLinesErrorName` - *string* - Lines that errored out will be placed here.  These lines are not processed.
   * `OutLinesDuplicateName` - *string* - Lines that are duplicates are placed here.  These lines are not processed.
+* `OutLog` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
 * `OutLinesColomns` - *String* - Comma seperated columns to be copied to OutLinesName.  If blank, everything is copied. Does not apply to error or duplicate files.
 * `	OutLinesRowOffset      int` - *int* - Used to skip header rows. Rows are discarded.  
 
@@ -35,8 +36,6 @@ Config is stored in config.json.  Must be valid json.
 * `OutAutoBatchName` - *string* -  Name of the batch directory.  Incrementer will be appended.  
 
 #### Global ####
-* `Log` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
-
 * `DirDepth` - *int* - How many directories deep?  (Usually 2 or 3).
 * `FolderSize` - *int* - how many files per folder and folder per folder?  Typically, this value should be 1024.
 * `Delimiter` - *string* - delimiter for input and output flat file.  

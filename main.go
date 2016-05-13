@@ -92,13 +92,18 @@ func main() {
 }
 
 func Config() *Configuration {
+	var err error
 	//Open config
-	file, _ := os.Open(configFile)
+	file, err := os.Open(configFile)
+	if err != nil {
+		panic("Unable to open config file: " + configFile +
+			". This probably means it doesn't exist or the program doesn't have read permissions." + err.Error())
+	}
 	defer file.Close()
 	//Config is json.
 	decoder := json.NewDecoder(file)
 	c := new(Configuration)
-	err := decoder.Decode(c)
+	err = decoder.Decode(c)
 	if err != nil {
 		panic("Unable to process config file. " + configFile +
 			". This probably means that the file isn't valid json." + err.Error())

@@ -6,10 +6,10 @@
   "OutDir": "test_directory/out",
   "OutLinesName": "processed.txt",
   "OutLinesErrorName": "errorLine.txt",
-  "OutLog": "process.log",
   "OutLinesDuplicateName":"duplicates.txt",
-  "OutLinesColomns":"1,2,3",
-  "OutLinesRowOffset": 2,
+  "OutLog": "process.log",
+  "OutLinesColomns":"0,2,3",
+  "OutLinesRowOffset": 1,
 
   "OutFileExt": ".tif",
   "OutFileRenameInt": true,
@@ -20,7 +20,6 @@
   "OutAutoBatchCount": 10000,
   "OutAutoBatchName": "Batch",
   "OutAutoBatchZeroPad": 8,
-
 
   "DirDepth": 2,
   "FolderSize": 1024,
