@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -475,6 +476,7 @@ func MkdirAll(dir string) {
 
 //initLog Opens or creates log file, set log output.
 func initLog(c *Configuration) {
+	fmt.Println(runtime.GOOS)
 
 	ol := filepath.Join(c.OutDir, c.OutLog)
 	f, err := os.OpenFile(ol, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)

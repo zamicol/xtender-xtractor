@@ -7,7 +7,7 @@ dt and dl tables in ApplicationXtender.  This application is designed to be used
 with a sql dump from ApplicationXtender tables.
 
 # Config #
-Config is stored in config.json.  Must be valid json.
+Config is stored in config.json.  Must be valid json.  The program expects "config.json" to appear in the present working directory.  
 
 ## Config Values ##
 #### In ####
@@ -17,12 +17,11 @@ Config is stored in config.json.  Must be valid json.
 
 #### Out ####
 * `OutDir` - *string* -  Path for output file.
-
 * **OutLines** If using batching, for `OutLinesName`, `OutLinesErrorName`, and `OutLinesDuplicateName` batch name will be prepended plus an underscore.  One of each file per batch.   
   * `OutLinesName` - *string* - Output of running the process.  Basically appends copied file information to the end of each row processed from InFlatFile.  This is the "index" file for copied files.
   * `OutLinesErrorName` - *string* - Lines that errored out will be placed here.  These lines are not processed.
   * `OutLinesDuplicateName` - *string* - Lines that are duplicates are placed here.  These lines are not processed.
-* `OutLog` - *string* - name of the log file.  The log give start and stop times, lines processed, and other summary details.
+* `OutLog` - *string* - Name of the log file.  The log give start and stop times, lines processed, and other summary details.  Placed in OutDir.
 * `OutLinesColomns` - *String* - Comma seperated columns to be copied to OutLinesName.  If blank, everything is copied. Does not apply to error or duplicate files.
 * `	OutLinesRowOffset      int` - *int* - Used to skip header rows. Rows are discarded.  
 
