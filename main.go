@@ -16,23 +16,22 @@ import (
 )
 
 var (
-	lineCount  int = 0 //Increment for each line
-	successful int = 0 //Sucessfully copied files
-	failed     int = 0 //Failed to copy count.
-	duplicates int = 0 //duplicates found in the sort file
+	lineCount  int //Increment for each line
+	successful int //Sucessfully copied files
+	failed     int //Failed to copy count.
+	duplicates int //duplicates found in the sort file
 
-	skipped    int      = 0             //offset rows (future other skips)
-	logFile    *os.File                 //Log file
-	outFlat    *os.File                 //"index" file out.  Append existing rows plus new file path.
-	outDups    *os.File                 //Copy over any lines that are skipped due to being duplicated object id's
-	errorLines *os.File                 //Error lines
-	configFile          = "config.json" //Configuration file.
+	skipped    int             //offset rows (future other skips)
+	logFile    *os.File        //Log file
+	outFlat    *os.File        //"index" file out.  Append existing rows plus new file path.
+	outDups    *os.File        //Copy over any lines that are skipped due to being duplicated object id's
+	errorLines *os.File        //Error lines
+	configFile = "config.json" //Configuration file.
 
-	last int = 0 //Remeber last object ID processed.  Prevents duplicates.
+	last int //Remeber last object ID processed.  Prevents duplicates.
 )
 
-//Configuration
-//From config.json
+//Configuration stores settings from config.json
 //See README for description of each variable.
 type Configuration struct {
 	//In
@@ -74,6 +73,7 @@ type Configuration struct {
 	ColFileExtOut int
 }
 
+//Line represents line contents and settings.
 type Line struct {
 	*Configuration
 	Line    string   //String of the line
@@ -92,6 +92,7 @@ func main() {
 	setup(c)
 }
 
+//Config parses config file into memory
 func Config() *Configuration {
 	var err error
 	//Open config
@@ -195,7 +196,7 @@ func processIn(flat string, c *Configuration) {
 	}
 }
 
-//processLine copies file to output.
+//ProcessLine copies file to output.
 //Returns false in the event of error
 func (l *Line) ProcessLine() (b bool) {
 	var err error
@@ -261,8 +262,7 @@ func (l *Line) ProcessLine() (b bool) {
 	return true
 }
 
-//GetInPath
-//Get full path for file in
+//GetInPath Get full path for file in
 func (l *Line) GetInPath() (fullPath string, err error) {
 	//Get extension for in file.
 	var inExtension string
@@ -281,7 +281,7 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 	}
 
 	var subpath string
-	subpath, err = l.GetPathFromId()
+	subpath, err = l.GetPathFromID()
 	if err != nil {
 		return "", err
 	}
@@ -293,8 +293,7 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 	return fullPath, nil
 }
 
-//GetOutPath
-//Get full path for out file
+//GetOutPath Get full path for out file
 func (l *Line) GetOutPath() (out string, err error) {
 	//full file path out.
 	var filename string
@@ -323,7 +322,7 @@ func (l *Line) GetOutPath() (out string, err error) {
 	//Create parent path first.
 	if l.OutXtenderStructure == true {
 		var subpath string
-		subpath, err = l.GetPathFromId()
+		subpath, err = l.GetPathFromID()
 		if err != nil {
 			return "", err
 		}
@@ -341,8 +340,7 @@ func (l *Line) GetOutPath() (out string, err error) {
 	return l.Path, nil
 }
 
-//OutLines
-//Create the "OutLines" files.
+//OutLineFile Create the "OutLines" file.
 //Should call defer os.Close
 func (l *Line) OutLineFile() {
 	outFile := l.GetBatch() + "_" + l.OutLinesName
@@ -355,8 +353,7 @@ func (l *Line) OutLineFile() {
 	//return outFlat
 }
 
-//GetBatch
-//Return the batch name, including incrementer
+//GetBatch Return the batch name, including incrementer
 func (l *Line) GetBatch() string {
 	//If batch is false, there is no batch.  Return blank string
 	if l.OutAutoBatch == false {
@@ -374,8 +371,7 @@ func (l *Line) GetBatch() string {
 	return l.OutAutoBatchName + bcn
 }
 
-//GenLineFromColumns
-//Instead of copying the line from flat in, grab only some columns and write those to out.
+//GenLineFromColumns Instead of copying the line from flat in, grab only some columns and write those to out.
 func (l *Line) GenLineFromColumns() (err error) {
 
 	var line string
@@ -399,8 +395,8 @@ func (l *Line) GenLineFromColumns() (err error) {
 	return nil
 }
 
-//Calculate the ApplicationXtender from a given object id, s
-func (l *Line) GetPathFromId() (p string, e error) {
+//GetPathFromID Calculate the ApplicationXtender from a given object id, s
+func (l *Line) GetPathFromID() (p string, e error) {
 	//For each step of the path, we will calculate that portion of the path
 	for i := l.DirDepth; i > 0; i-- {
 		//Get maximum of how many objects there could be at this level.
@@ -443,8 +439,8 @@ func copy(in, out string) (err error) {
 	return nil
 }
 
+//Mkdir Create out dir if not exist, only one deep
 func Mkdir(dir string) {
-	//Create out dir if not exist, only one deep
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		fmt.Println("Out directory does not exist.", dir)
@@ -453,23 +449,21 @@ func Mkdir(dir string) {
 			fmt.Println("Created output directory: ", dir)
 		} else {
 			message := fmt.Sprint("Unable to create output directory.  Stopping execution ", dir, err)
-			errors.New(message)
-			panic(err)
+			panic(message)
 		}
 	} else {
 		fmt.Println("Out directory exists.", dir)
 	}
 }
 
+//MkdirAll Create out dir if not exist recursivly
 func MkdirAll(dir string) {
-	//Create out dir if not exist, only one deep
 	_, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(dir, 0777)
 		if err != nil {
 			message := fmt.Sprint("Unable to create output directory.  Stopping execution ", dir, err)
-			errors.New(message)
-			panic(err)
+			panic(message)
 		}
 	}
 }

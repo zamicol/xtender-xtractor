@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 )
 
@@ -16,10 +17,14 @@ func TestPathCalc(t *testing.T) {
 	c.DirDepth = 2
 	c.FolderSize = 1024
 
+	l := new(Line)
+	l.Configuration = c
+
 	for key, value := range s {
-		p, err := getPathFromId(value, c)
+		l.ID, _ = strconv.Atoi(value)
+		p, err := l.GetPathFromID()
 		if err != nil {
-			t.Errorf("getPathFromId error", err)
+			t.Error("GetPathFromID error", err)
 		}
 		if key != p {
 			t.Errorf("Calculation mismatch. Expected: " + key + ", Got:" + p)
