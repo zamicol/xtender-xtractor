@@ -2,8 +2,8 @@ xtender-xtractor - ApplicationXtender File Extraction Tool
 =================
 # Introduction #
 xtender-xtractor is used to copy files out manually from an ApplicationXtender environment.  
-Depending on setup, Object ID's and their "docid"'s can be pulled from the 
-dt and dl tables in ApplicationXtender.  This application is designed to be used in conjunction 
+Depending on setup, Object ID's and their "docid"'s can be pulled from the
+dt and dl tables in ApplicationXtender.  This application is designed to be used in conjunction
 with a sql dump from ApplicationXtender tables.
 
 # Config #
@@ -28,8 +28,11 @@ Config is stored in config.json.  Must be valid json.  The program expects "conf
 * `OutFileExt` - *string* - Extension for output files.  If blank, ColFileExtOut will be used.
 * `OutFileRenameInt` - *boolean* - File will be named an incrementing integer.  If set to false, files will be named to ColFileName's value.
 * `OutFileRenameIntOffset` - *int* - If file naming sequentially using OutFileRenameInt, this is the offset. Typically should be 0.
-
 * `OutDirXtenderStructure` - *boolean* - Put output files in a directory structure that mimics ApplicationXtender.
+* `OutZipped` - *boolean* - Zip entire OutDir.  Preserves OutDir's name and places zip next to OutDir.    
+* `OutZippedDeleteSource` - *boolean* - Delete Zip's source folder once zip is made.  **WARNING** Be careful!  
+
+
 * `OutAutoBatch` - *boolean* - Autobatch?  Will output files into batch folders first.  Might make migration more manageable.  The program will also look to see if the out directory already contains batches.  If it does, it will pick put where it left off.
 * `OutAutoBatchCount` - *int* - How many files per batch?
 * `OutAutoBatchName` - *string* -  Name of the batch directory.  Incrementer will be appended.  
@@ -50,7 +53,7 @@ Config is stored in config.json.  Must be valid json.  The program expects "conf
 Flat File should be ordered by object ID.  If list is not sorted, duplicates will be copied and overwrite existing object id's.  When sorted,  duplicate object ID's are skipped and their lines written to the duplicate file.
 
 ```
-SELECT TOP 100000 
+SELECT TOP 100000
 dl.[objectid]
 ,paths.path
 ,dt.[docid]
@@ -82,7 +85,7 @@ See getPathFromId() for the exact logic.
 
 #### Example One ####
 ```
-Document ID: 2927782 
+Document ID: 2927782
 Parent Directory: X:\whatever\
 ```
 **Calculation** Given these parameters:
@@ -107,16 +110,3 @@ ObjectId = 7957574
 
 Add it all together:
 Path = \7\603\7957574.bin
-
-
-
-
-
-
-
-
-
-
-
-
-

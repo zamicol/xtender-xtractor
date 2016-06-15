@@ -15,7 +15,9 @@
   "OutFileRenameInt": true,
   "OutFileRenameIntOffset": 0,
   "OutXtenderStructure": true,
-  
+  "OutZipped":true,
+  "OutZippedDeleteSource":true,
+
   "OutAutoBatch": true,
   "OutAutoBatchCount": 10000,
   "OutAutoBatchName": "Batch",

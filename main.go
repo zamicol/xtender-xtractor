@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/jhoonb/archivex"
 )
 
 var (
@@ -53,6 +55,8 @@ type Configuration struct {
 	OutFileRenameInt       bool
 	OutFileRenameIntOffset int
 	OutXtenderStructure    bool
+	OutZipped              bool
+	OutZippedDeleteSource  bool
 	//AutoBatch
 	OutAutoBatch        bool
 	OutAutoBatchCount   int
@@ -193,6 +197,22 @@ func processIn(flat string, c *Configuration) {
 
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
+	}
+
+	//Zip results?
+	if c.OutZipped {
+		log.Println("Zipping source directory:", c.OutDir)
+		zip := new(archivex.ZipFile)
+		zip.Create(c.OutDir + ".zip")
+		zip.AddAll(c.OutDir, true)
+		zip.Close()
+		//Log is now not available since out is zipped.
+		fmt.Println("Zipped source directory:", c.OutDir+".zip")
+		//Delete sources
+		if c.OutZippedDeleteSource {
+			os.RemoveAll(c.OutDir)
+			fmt.Println("Removed zip source directory:", c.OutDir)
+		}
 	}
 }
 
