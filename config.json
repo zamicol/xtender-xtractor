@@ -4,10 +4,10 @@
   "InFileExt": ".bin",
 
   "OutDir": "test_directory/out",
+  "OutLog": "process.log",
   "OutLinesName": "processed.txt",
   "OutLinesErrorName": "errorLine.txt",
   "OutLinesDuplicateName":"duplicates.txt",
-  "OutLog": "process.log",
   "OutLinesColomns":"0,2,3",
   "OutLinesRowOffset": 1,
 
