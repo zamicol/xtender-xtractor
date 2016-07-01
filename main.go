@@ -113,6 +113,10 @@ func processIn(flat string, c *Configuration) {
 		line.ProcessLine()
 	}
 
+	//Print to the log the last out ObjectID
+	log.Println("Last ObjectID in:", line.ID)
+	log.Println("Last ObjectID out:", successful+line.OutFileRenameIntOffset-1)
+
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}

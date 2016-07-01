@@ -28,7 +28,8 @@ func InitLog(c *Configuration) {
 //stopLog closses the log file and prints the final exit message.
 func stopLog() {
 	exitMessage := fmt.Sprint(
-		"Process stopped. \nLines processed: ", lineCount,
+		"Process stopped. ",
+		"\nLines processed: ", lineCount,
 		"\nSkipped rows:", skipped,
 		"\nSucessfully copied: ", successful,
 		"\nDuplicates skipped: ", duplicates,

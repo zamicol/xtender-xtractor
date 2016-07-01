@@ -28,7 +28,7 @@ Config is stored in config.json.  Must be valid json.  The program expects "conf
 
 * `OutFileExt` - *string* - Extension for output files.  If blank, ColFileExtOut will be used.
 * `OutFileRenameInt` - *boolean* - File will be named an incrementing integer.  If set to false, files will be named to ColFileName's value.
-* `OutFileRenameIntOffset` - *int* - If file naming sequentially using OutFileRenameInt, this is the offset. Typically should be 0.  Useful to continue extractions from previous attempts.  
+* `OutFileRenameIntOffset` - *int* - If file naming sequentially using OutFileRenameInt, this is the offset. Typically should be 0.  Useful to continue extractions from previous attempts.  If continuing past extraction, this should be last ObjectID out plus 1.  
 * `OutDirXtenderStructure` - *boolean* - Put output files in a directory structure that mimics ApplicationXtender.
 * `OutZipped` - *boolean* - Zip entire OutDir.  Preserves OutDir's name and places zip next to OutDir.    
 * `OutZippedDeleteSource` - *boolean* - Delete Zip's source folder once zip is made.  **WARNING** Be careful!  
