@@ -38,6 +38,11 @@ type Configuration struct {
 	OutAutoBatchName    string
 	OutAutoBatchZeroPad int
 
+	//Missing
+	Missing      bool
+	MissingIn    string
+	MissingCount int
+
 	//Global
 	//Applies to both in and out
 	DirDepth        int

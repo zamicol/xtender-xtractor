@@ -47,7 +47,7 @@ func (l *Line) ProcessLine() (b bool) {
 	l.LastID = l.ID
 
 	//Get full path for file in
-	l.Path, err = l.GetInPath()
+	l.GetInPath()
 	if err != nil {
 		return errorLine(&l.Line, err)
 	}
@@ -118,6 +118,7 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 
 	//Full path for file in.
 	fullPath = filepath.Join(parentPath, subpath, fileName) + inExtension
+	l.Path = fullPath
 	return fullPath, nil
 }
 

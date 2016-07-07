@@ -64,8 +64,13 @@ func setup(c *Configuration) {
 	}
 	defer errorLines.Close()
 
-	//Process file
-	processIn(c.InFlatFile, c)
+	//Process missing or in or out
+	if c.Missing {
+		missing(c)
+	} else {
+		//Process file
+		processIn(c.InFlatFile, c)
+	}
 }
 
 //processIndex processes flat file dump file line by line.

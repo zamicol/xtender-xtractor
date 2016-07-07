@@ -1,5 +1,4 @@
 #project ignores.
-sTest.txt
 test_directory/processed.txt
 test_directory/errored.txt
 test_directory/out/
@@ -13,4 +12,6 @@ bin/
 *.swp
 *.swo
 
-
+#sensitive ignores
+missing.dump
+sTest.txt
