@@ -114,9 +114,19 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 		return "", err
 	}
 
-	var fileName = strconv.Itoa(l.ID)
-
 	//Full path for file in.
+	//99,999,999 plus hex codes.
+	//File names change to a hex convention after 999,999,999.
+	//Convention: "A" + the object ID converted into HEX
+	var fileName string
+	if l.ID > 99999999 {
+		i64 := int64(l.ID)
+		fileName = "A" + strconv.FormatInt(i64, 16)
+		fileName = strings.ToUpper(fileName)
+	} else {
+		fileName = strconv.Itoa(l.ID)
+	}
+
 	fullPath = filepath.Join(parentPath, subpath, fileName) + inExtension
 	l.Path = fullPath
 	return fullPath, nil
@@ -155,7 +165,6 @@ func (l *Line) GetOutPath() (out string, err error) {
 		if err != nil {
 			return "", err
 		}
-
 		//Add the subpath to the current dir.
 		l.Dir = filepath.Join(l.Dir, subpath)
 	}
@@ -228,6 +237,7 @@ func (l *Line) GenLineFromColumns() (err error) {
 }
 
 //GetPathFromID Calculate the ApplicationXtender from a given object id, s
+//See README for examples and further explaination.
 func (l *Line) GetPathFromID() (p string, e error) {
 	//For each step of the path, we will calculate that portion of the path
 	for i := l.DirDepth; i > 0; i-- {

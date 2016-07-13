@@ -24,7 +24,7 @@
   "OutAutoBatchName": "Batch",
   "OutAutoBatchZeroPad": 8,
 
-  "Missing":true,
+  "Missing":false,
   "MissingIn":"test_directory/test.dump",
 
   "DirDepth": 2,

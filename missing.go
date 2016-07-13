@@ -17,7 +17,7 @@ import (
 //Column 2: Bucket (Probably going to be application name)
 func missing(c *Configuration) error {
 
-	//Open missing in
+	//Open missing in flat file
 	file, err := os.Open(c.MissingIn)
 	if err != nil {
 		log.Fatal(err)
