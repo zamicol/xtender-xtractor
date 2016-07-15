@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	lineCount  int //Increment for each line
-	successful int //Sucessfully copied files
-	failed     int //Failed to copy count.
-	duplicates int //duplicates found in the sort file
+	lineCount  int64 //Increment for each line
+	successful int64 //Sucessfully copied files
+	failed     int64 //Failed to copy count.
+	duplicates int64 //duplicates found in the sort file
 
-	skipped    int             //offset rows (future other skips)
+	skipped    int64           //offset rows (future other skips)
 	logFile    *os.File        //Log file
 	outDups    *os.File        //Copy over any lines that are skipped due to being duplicated object id's
 	errorLines *os.File        //Error lines

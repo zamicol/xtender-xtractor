@@ -21,7 +21,7 @@ func TestPathCalc(t *testing.T) {
 	l.Configuration = c
 
 	for key, value := range s {
-		l.ID, _ = strconv.Atoi(value)
+		l.ID, _ = strconv.ParseInt(value, 10, 64)
 		p, err := l.GetPathFromID()
 		if err != nil {
 			t.Error("GetPathFromID error", err)

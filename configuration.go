@@ -23,25 +23,25 @@ type Configuration struct {
 	OutLinesName          string
 	OutLinesErrorName     string
 	OutLinesColomns       string
-	OutLinesRowOffset     int
+	OutLinesRowOffset     int64
 	OutLinesDuplicateName string
 	//Files
 	OutFileExt             string
 	OutFileRenameInt       bool
-	OutFileRenameIntOffset int
+	OutFileRenameIntOffset int64
 	OutXtenderStructure    bool
 	OutZipped              bool
 	OutZippedDeleteSource  bool
 	//AutoBatch
 	OutAutoBatch        bool
-	OutAutoBatchCount   int
+	OutAutoBatchCount   int64
 	OutAutoBatchName    string
 	OutAutoBatchZeroPad int
 
 	//Missing
 	Missing      bool
 	MissingIn    string
-	MissingCount int
+	MissingCount int64
 
 	//Global
 	//Applies to both in and out

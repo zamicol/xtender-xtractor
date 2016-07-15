@@ -57,7 +57,7 @@ func missing(c *Configuration) error {
 		//In directory should be column 2
 		l.InDir = col[1]
 		var err error
-		l.ID, err = strconv.Atoi(col[0])
+		l.ID, err = strconv.ParseInt(col[0], 10, 64)
 		if err != nil {
 			log.Println(err)
 			failed++

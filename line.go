@@ -16,8 +16,8 @@ type Line struct {
 	*Configuration
 	Line    string   //String of the entire line
 	Columns []string //Parsed columns
-	ID      int      //uniqueobject ID.  Used for path calculation.
-	LastID  int      //Remeber last object ID processed.  Prevents duplicates.
+	ID      int64    //uniqueobject ID.  Used for path calculation.
+	LastID  int64    //Remeber last object ID processed.  Prevents duplicates.
 	Dir     string   //Directory of object file
 	Path    string   //Full path of object calc. from objectID
 	File    *os.File //File to write the line out to
@@ -27,9 +27,11 @@ type Line struct {
 //Returns false in the event of error
 func (l *Line) ProcessLine() (b bool) {
 	var err error
+	var id int
 
 	//Get object ID from column
-	l.ID, err = strconv.Atoi(l.Columns[l.ColObjectID])
+	id, err = strconv.Atoi(l.Columns[l.ColObjectID])
+	l.ID = int64(id)
 	if err != nil {
 		return errorLine(&l.Line, err)
 	}
@@ -56,7 +58,7 @@ func (l *Line) ProcessLine() (b bool) {
 	lo := *l
 	//What object out are we on?  Should be successful plus offset
 	current := successful + l.OutFileRenameIntOffset
-	lo.ID = current
+	lo.ID = int64(current)
 
 	//init out file
 	lo.OutLineFile()
@@ -116,15 +118,14 @@ func (l *Line) GetInPath() (fullPath string, err error) {
 
 	//Full path for file in.
 	//99,999,999 plus hex codes.
-	//File names change to a hex convention after 999,999,999.
+	//File names change to a hex convention after 99,999,999.
 	//Convention: "A" + the object ID converted into HEX
 	var fileName string
 	if l.ID > 99999999 {
-		i64 := int64(l.ID)
-		fileName = "A" + strconv.FormatInt(i64, 16)
+		fileName = "A" + strconv.FormatInt(l.ID, 16)
 		fileName = strings.ToUpper(fileName)
 	} else {
-		fileName = strconv.Itoa(l.ID)
+		fileName = strconv.FormatInt(l.ID, 10)
 	}
 
 	fullPath = filepath.Join(parentPath, subpath, fileName) + inExtension
@@ -139,7 +140,7 @@ func (l *Line) GetOutPath() (out string, err error) {
 
 	if l.OutFileRenameInt == true {
 		//Use ID as file name
-		filename = strconv.Itoa(l.ID)
+		filename = strconv.FormatInt(l.ID, 10)
 	} else {
 		//Get the file name from the in file
 		filename = l.Columns[l.ColFileName]
@@ -202,7 +203,7 @@ func (l *Line) GetBatch() string {
 		return ""
 	}
 
-	var batchCount int
+	var batchCount int64
 	batchCount = l.ID / l.OutAutoBatchCount
 
 	//Zero pad our batch
