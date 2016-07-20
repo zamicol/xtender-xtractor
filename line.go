@@ -24,10 +24,15 @@ type Line struct {
 }
 
 //ProcessLine copies file to output.
-//Returns false in the event of error
+//Returns false in the event of error or empty
 func (l *Line) ProcessLine() (b bool) {
 	var err error
 	var id int
+
+	//Is the line empty?  Skip line.
+	if len(l.Columns) == 1 && len(l.Columns[0]) == 0 {
+		return false
+	}
 
 	//Get object ID from column
 	id, err = strconv.Atoi(l.Columns[l.ColObjectID])
