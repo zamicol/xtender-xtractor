@@ -9,7 +9,7 @@
   "OutLinesName": "processed.txt",
   "OutLinesErrorName": "errorLine.txt",
   "OutLinesDuplicateName":"duplicates.txt",
-  "OutLinesColomns":"0,2,3",
+  "OutLinesColumns":"0,2,3",
   "OutLinesRowOffset": 1,
 
   "OutFileExt": ".tif",

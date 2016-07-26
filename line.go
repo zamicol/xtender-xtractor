@@ -222,7 +222,7 @@ func (l *Line) GetBatch() string {
 func (l *Line) GenLineFromColumns() (err error) {
 
 	var line string
-	cols := strings.Split(l.OutLinesColomns, ",")
+	cols := strings.Split(l.OutLinesColumns, ",")
 	for _, v := range cols {
 		i, err := strconv.Atoi(v)
 		if err != nil {

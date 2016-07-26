@@ -22,7 +22,7 @@ type Configuration struct {
 	//Lines
 	OutLinesName          string
 	OutLinesErrorName     string
-	OutLinesColomns       string
+	OutLinesColumns       string
 	OutLinesRowOffset     int64
 	OutLinesDuplicateName string
 	//Files
