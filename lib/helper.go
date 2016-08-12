@@ -1,43 +1,12 @@
-package main
+package lib
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 
 	"github.com/jhoonb/archivex"
 )
-
-//copy copies file from in to out.
-func copy(in, out string) (err error) {
-	i, err := os.Open(in)
-	if err != nil {
-		failed++
-		message := fmt.Sprint("File does not exist. ", in)
-		fmt.Println(message)
-		return errors.New(message)
-	}
-	defer i.Close()
-
-	o, err := os.Create(out)
-	if err != nil {
-		log.Println("Cannot create file out.  Stopping execution", out)
-		panic(err)
-	}
-	defer o.Close()
-
-	_, err = io.Copy(o, i)
-	if err != nil {
-		log.Println("Copying failed.  Stopping execution", out)
-		panic(err)
-	} else {
-		successful++
-	}
-
-	return nil
-}
 
 //Mkdir Create out dir if not exist, only one deep
 func Mkdir(dir string) {

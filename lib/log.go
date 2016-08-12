@@ -1,4 +1,4 @@
-package main
+package lib
 
 //initLog Opens or creates log file, set log output.
 import (
@@ -19,22 +19,22 @@ func InitLog(c *Configuration) {
 	}
 
 	log.SetOutput(f)
-	logFile = f
+	c.logFile = f
 	log.Println("Started process.")
 	m := fmt.Sprintf("Configuration: %+v\n", *c)
 	log.Println(m)
 }
 
 //stopLog closses the log file and prints the final exit message.
-func stopLog() {
+func stopLog(l *Line) {
 	exitMessage := fmt.Sprint(
 		"Process stopped. ",
-		"\nLines processed: ", lineCount,
-		"\nSkipped rows:", skipped,
-		"\nSucessfully copied: ", successful,
-		"\nDuplicates skipped: ", duplicates,
-		"\nFailed:", failed)
+		"\nLines processed: ", l.lineCount,
+		"\nSkipped rows:", l.skipped,
+		"\nSucessfully copied: ", l.successful,
+		"\nDuplicates skipped: ", l.duplicates,
+		"\nFailed:", l.failed)
 	log.Println(exitMessage)
 	fmt.Println(exitMessage)
-	defer logFile.Close()
+	defer l.logFile.Close()
 }

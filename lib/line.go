@@ -1,8 +1,9 @@
-package main
+package lib
 
-//writeLine writes given string to given file with a newline appended at the end.
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -16,11 +17,17 @@ type Line struct {
 	*Configuration
 	Line    string   //String of the entire line
 	Columns []string //Parsed columns
-	ID      int64    //uniqueobject ID.  Used for path calculation.
+	ID      int64    //Calculated uniqueobject ID.  Used for path calculation.
 	LastID  int64    //Remeber last object ID processed.  Prevents duplicates.
 	Dir     string   //Directory of object file
 	Path    string   //Full path of object calc. from objectID
 	File    *os.File //File to write the line out to
+
+	lineCount  int64 //Increment for each line
+	successful int64 //Sucessfully copied files
+	failed     int64 //Failed to copy count.
+	duplicates int64 //duplicates found in the sort file
+	skipped    int64 //offset rows (future other skips)
 }
 
 //ProcessLine copies file to output.
@@ -38,15 +45,15 @@ func (l *Line) ProcessLine() (b bool) {
 	id, err = strconv.Atoi(l.Columns[l.ColObjectID])
 	l.ID = int64(id)
 	if err != nil {
-		return errorLine(&l.Line, err)
+		return l.errorLine(&l.Line, err)
 	}
 
 	//Check to see if object was already processed.
 	//We do this by comparing objectID, which represents a unique object
 	if l.LastID == l.ID {
-		duplicates++
+		l.duplicates++
 		log.Println("Skipping duplicate.", l.ID)
-		writeLine(l.Line, outDups)
+		writeLine(l.Line, l.outDups)
 		return false
 	}
 
@@ -56,13 +63,13 @@ func (l *Line) ProcessLine() (b bool) {
 	//Get full path for file in
 	l.GetInPath()
 	if err != nil {
-		return errorLine(&l.Line, err)
+		return l.errorLine(&l.Line, err)
 	}
 
 	//Create new Line for line out.  Copy values from line in.
 	lo := *l
 	//What object out are we on?  Should be successful plus offset
-	current := successful + l.OutFileRenameIntOffset
+	current := l.successful + l.OutFileRenameIntOffset
 	lo.ID = int64(current)
 
 	//init out file
@@ -73,7 +80,7 @@ func (l *Line) ProcessLine() (b bool) {
 	lo.Path, err = lo.GetOutPath()
 	if err != nil {
 		//Write line in to error line.
-		return errorLine(&l.Line, err)
+		return l.errorLine(&l.Line, err)
 	}
 
 	//fmt.Println("inFullPath:", l.Path, "outFullPath:", lo.Path)
@@ -81,16 +88,16 @@ func (l *Line) ProcessLine() (b bool) {
 	MkdirAll(lo.Dir)
 
 	//Copy file
-	err = copy(l.Path, lo.Path)
+	err = l.copy(l.Path, lo.Path)
 	//Write line to out file if successful
 	if err != nil {
-		return errorLine(&l.Line, err)
+		return l.errorLine(&l.Line, err)
 	}
 
 	//Columns
 	err = lo.GenLineFromColumns()
 	if err != nil {
-		return errorLine(&l.Line, err)
+		return l.errorLine(&l.Line, err)
 	}
 	writeLine(lo.Line+lo.Delimiter+lo.Path, lo.File)
 
@@ -258,14 +265,45 @@ func (l *Line) GetPathFromID() (p string, e error) {
 	return p, e
 }
 
+//writeLine writes given string to given file with a newline appended at the end.
 func writeLine(s string, f *os.File) {
 	f.WriteString(s + "\n")
 }
 
 //errorLine
-//helper function for when encountering error lines.  Logs the line number with error and and writes the line to the error line file.
-func errorLine(line *string, err error) (b bool) {
-	writeLine(*line, errorLines)
-	log.Println("Line:", lineCount, err)
+//helper function for when encountering error lines.  Logs the line number with
+//error and and writes the line to the error line file.
+func (l *Line) errorLine(line *string, err error) (b bool) {
+	writeLine(*line, l.errorLines)
+	log.Println("Line:", l.lineCount, err)
 	return false
+}
+
+//copy copies file from in to out.
+func (l *Line) copy(in string, out string) (err error) {
+	i, err := os.Open(in)
+	if err != nil {
+		l.failed++
+		message := fmt.Sprint("File does not exist. ", in)
+		fmt.Println(message)
+		return errors.New(message)
+	}
+	defer i.Close()
+
+	o, err := os.Create(out)
+	if err != nil {
+		log.Println("Cannot create file out.  Stopping execution", out)
+		panic(err)
+	}
+	defer o.Close()
+
+	_, err = io.Copy(o, i)
+	if err != nil {
+		log.Println("Copying failed.  Stopping execution", out)
+		panic(err)
+	} else {
+		l.successful++
+	}
+
+	return nil
 }

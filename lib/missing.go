@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"bufio"
@@ -17,6 +17,11 @@ import (
 //Column 2: Bucket (Probably going to be application name)
 func missing(c *Configuration) error {
 
+	//New line object.
+	l := &Line{
+		Configuration: c,
+	}
+
 	//Open missing in flat file
 	file, err := os.Open(c.MissingIn)
 	if err != nil {
@@ -25,11 +30,6 @@ func missing(c *Configuration) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-
-	//New line object.
-	l := &Line{
-		Configuration: c,
-	}
 
 	defer l.File.Close()
 	//Keep track of previous bucket
@@ -40,7 +40,7 @@ func missing(c *Configuration) error {
 		//Get the line to be processed.
 		var lineText = scanner.Text()
 		//Increment the counter and process the line
-		lineCount++
+		l.lineCount++
 
 		//Construct our line type
 		//Get the columns in the line
@@ -51,7 +51,7 @@ func missing(c *Configuration) error {
 		l.Columns = col
 		//We should always have at least columns
 		if len(col) >= 3 {
-			failed++
+			l.failed++
 			log.Println("Line is not 3 columns")
 		}
 		//In directory should be column 2
@@ -60,7 +60,7 @@ func missing(c *Configuration) error {
 		l.ID, err = strconv.ParseInt(col[0], 10, 64)
 		if err != nil {
 			log.Println(err)
-			failed++
+			l.failed++
 		}
 
 		//Open the text file for bucket
@@ -79,7 +79,7 @@ func missing(c *Configuration) error {
 
 		l.GetInPath()
 
-		fmt.Println(lineCount, l.Path)
+		fmt.Println(l.lineCount, l.Path)
 
 		calcMissing(l)
 
