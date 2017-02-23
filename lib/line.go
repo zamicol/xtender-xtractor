@@ -70,6 +70,13 @@ func (l *Line) ProcessLine() (b bool) {
 	lo := *l
 	//What object out are we on?  Should be successful plus offset
 	current := l.successful + l.OutFileRenameIntOffset
+
+	//*** Added 2/16/17 PCS
+	if l.OutFileRenameInt != true {
+		//Use the object ID in instead since we aren't changing the names
+		current = l.ID
+	}
+	
 	lo.ID = int64(current)
 
 	//init out file
@@ -260,8 +267,10 @@ func (l *Line) GetPathFromID() (p string, e error) {
 		subpath := int(math.Mod((float64(l.ID) / powered), float64(l.FolderSize)))
 		//Add this portion of the path to the directory string.  Iterate next level until done.
 		p = filepath.Join(p, strconv.Itoa(subpath))
-		//fmt.Println("Path:", p, "Id value:", id, "Subpath:", subpath, "I:", i, "Powered: ", powered)
+		//fmt.Println("i:", i)
+		//fmt.Println("Path:", p, "Id value:", l.ID, "Subpath:", subpath, "I:", i, "Powered: ", powered)
 	}
+	//fmt.Println("******** End GetPathFromID function *******")
 	return p, e
 }
 
