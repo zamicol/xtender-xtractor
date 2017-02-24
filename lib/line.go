@@ -34,6 +34,7 @@ type Line struct {
 //Returns false in the event of error or empty
 func (l *Line) ProcessLine() (b bool) {
 	var err error
+	var err2 error
 	var id int
 
 	//Is the line empty?  Skip line.
@@ -97,8 +98,15 @@ func (l *Line) ProcessLine() (b bool) {
 	//Copy file
 	err = l.copy(l.Path, lo.Path)
 	//Write line to out file if successful
+	
 	if err != nil {
-		return l.errorLine(&l.Line, err)
+		//If a copy error is returned, try once more before logging an error - helps with connectivity issues
+		err2 = l.copy(l.Path, lo.Path)
+		if err2 != nil {
+			return l.errorLine(&l.Line, err2)
+		}
+		err = nil
+		err2 = nil
 	}
 
 	//Columns
